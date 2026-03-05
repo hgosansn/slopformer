@@ -8,11 +8,13 @@
     body { 
       background: #000; 
       display: flex; 
+      flex-direction: column;
       justify-content: center; 
       align-items: center; 
       height: 100vh; 
       overflow: hidden;
       font-family: sans-serif;
+      padding-bottom: 52px;
     }
     #frame {
       position: relative;
@@ -40,6 +42,37 @@
       color: #fff;
       font-size: 14px;
     }
+    #titleImg {
+      position: absolute;
+      top: -114px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(64%, 760px);
+      height: auto;
+      z-index: 9;
+      pointer-events: none;
+      filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.55));
+      image-rendering: pixelated;
+      animation: titleDropKaboom 1200ms cubic-bezier(.2,.8,.2,1) both;
+      transform-origin: 50% 100%;
+    }
+    #titleImg.title-bounce {
+      animation: titleRebound 700ms cubic-bezier(.25,.8,.25,1) both;
+    }
+    #kaboomFx {
+      position: absolute;
+      top: 128px;
+      left: 50%;
+      width: min(58%, 680px);
+      height: 120px;
+      transform: translateX(-50%) scaleX(0.2);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(255, 214, 74, 0.85) 0%, rgba(255, 153, 0, 0.55) 45%, rgba(255, 99, 71, 0.0) 78%);
+      opacity: 0;
+      z-index: 8;
+      pointer-events: none;
+      animation: kaboomFlash 1000ms ease-out both;
+    }
     #characterSelect {
       background: #161616;
       color: #fff;
@@ -52,17 +85,134 @@
       width: 100%;
       height: 100%;
     }
+    footer {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 20;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 6px 12px;
+      background: rgba(0, 0, 0, 0.72);
+      border-top: 1px solid rgba(255, 255, 255, 0.14);
+      backdrop-filter: blur(4px);
+    }
+    .fork-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #f1f1f1;
+      text-decoration: none;
+      font-size: 13px;
+      opacity: 0.92;
+      transition: opacity 0.15s ease;
+    }
+    .fork-link:hover {
+      opacity: 1;
+    }
+    .gh-icon {
+      width: 15px;
+      height: 15px;
+      fill: currentColor;
+      display: block;
+    }
+    .repo-badge {
+      height: 20px;
+      width: auto;
+      display: block;
+      border-radius: 4px;
+    }
+
+    @keyframes titleDropKaboom {
+      0% {
+        transform: translate(-50%, -240px) scale(0.9);
+        opacity: 0;
+      }
+      55% {
+        transform: translate(-50%, 0) scale(1.02);
+        opacity: 1;
+      }
+      65% {
+        transform: translate(-50%, 8px) scale(1.14, 0.84);
+      }
+      74% {
+        transform: translate(-50%, -6px) scale(0.96, 1.08);
+      }
+      100% {
+        transform: translate(-50%, 0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes kaboomFlash {
+      0%, 56% {
+        opacity: 0;
+        transform: translateX(-50%) scaleX(0.2);
+      }
+      64% {
+        opacity: 1;
+        transform: translateX(-50%) scaleX(1.06);
+      }
+      100% {
+        opacity: 0;
+        transform: translateX(-50%) scaleX(1.35);
+      }
+    }
+
+    @keyframes titleRebound {
+      0% {
+        transform: translateX(-50%) scale(1);
+      }
+      35% {
+        transform: translateX(-50%) translateY(4px) scale(1.14, 0.86);
+      }
+      65% {
+        transform: translateX(-50%) translateY(-6px) scale(0.96, 1.08);
+      }
+      100% {
+        transform: translateX(-50%) scale(1);
+      }
+    }
   </style>
 </head>
 <body>
 
 <div id="frame">
+  <img id="titleImg" src="assets/title.png" alt="Title">
+  <div id="kaboomFx" aria-hidden="true"></div>
   <div id="ui">
     <label for="characterSelect">Character</label>
     <select id="characterSelect"></select>
   </div>
   <canvas id="c"></canvas>
 </div>
+<footer>
+  <a
+    class="fork-link"
+    href="https://github.com/hgosansn/slopformer"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    <svg class="gh-icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38
+      0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+      -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66
+      .07-.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15
+      -.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.5 7.5 0 0 1 4 0c1.53-1.04
+      2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07
+      -1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2
+      0 .21.15.46.55.38A8 8 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+    </svg>
+    Fork me on GitHub
+  </a>
+  <a href="https://github.com/hgosansn/slopformer" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository badge">
+    <img class="repo-badge" alt="GitHub Repo" src="https://img.shields.io/badge/GitHub-hgosansn%2Fslopformer-181717?logo=github&logoColor=white">
+  </a>
+</footer>
 
 <script>
   // ── Config ─────────────────────────────────────────────────────────────────
@@ -82,6 +232,7 @@
   const canvas = document.getElementById('c');
   const ctx    = canvas.getContext('2d');
   const frame  = document.getElementById('frame');
+  const titleImg = document.getElementById('titleImg');
   const characterSelect = document.getElementById('characterSelect');
 
   function resize() {
@@ -172,6 +323,11 @@
       opt.textContent = charDef.name;
       characterSelect.appendChild(opt);
     }
+    const comingSoon = document.createElement('option');
+    comingSoon.value = '';
+    comingSoon.textContent = 'More to come...';
+    comingSoon.disabled = true;
+    characterSelect.appendChild(comingSoon);
     characterSelect.value = CHARACTERS[0].id;
     characterSelect.addEventListener('change', (e) => {
       const next = CHARACTERS.find((c) => c.id === e.target.value);
@@ -356,9 +512,16 @@
     requestAnimationFrame(loop);
   }
 
+  function triggerTitleBounce() {
+    titleImg.classList.remove('title-bounce');
+    void titleImg.offsetWidth; // restart CSS animation
+    titleImg.classList.add('title-bounce');
+  }
+
   initCharacterSelector();
   applyCharacter(CHARACTERS[0]);
   requestAnimationFrame(loop);
+  setInterval(triggerTitleBounce, 10000);
 </script>
 </body>
 </html>
