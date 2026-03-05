@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Character Platformer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      background: #000; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      height: 100vh; 
+      overflow: hidden;
+      font-family: sans-serif;
+    }
+    #frame {
+      position: relative;
+      width: 90vw;
+      max-width: 1200px;
+      aspect-ratio: 16 / 9;
+      background: #111;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+      border: 4px solid #222;
+    }
+    #ui {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      font-size: 14px;
+    }
+    #characterSelect {
+      background: #161616;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 6px;
+      padding: 4px 8px;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<div id="frame">
+  <div id="ui">
+    <label for="characterSelect">Character</label>
+    <select id="characterSelect"></select>
+  </div>
+  <canvas id="c"></canvas>
+</div>
+
+<script>
+  // ── Config ─────────────────────────────────────────────────────────────────
+  const FRAME_SIZE   = 128;   // px in spritesheet
+  const FRAME_PAD    = 2;     // padding between frames in sheet
+  const FRAME_STEP   = FRAME_SIZE + FRAME_PAD;
+  const JUMP_PAD     = 1;
+  const JUMP_STEP    = FRAME_SIZE + JUMP_PAD;
+  const DISPLAY_SIZE = 240;   // rendered size on screen
+  const WALK_FPS     = 10;    
+  const TURN_FPS     = 12;
+  const JUMP_FPS     = 14;
+  const WALK_SPEED   = 180;   // px/sec
+  const JUMP_CHANCE  = 0.9;   // chance to jump when action timer triggers
+
+  // ── Canvas ─────────────────────────────────────────────────────────────────
+  const canvas = document.getElementById('c');
+  const ctx    = canvas.getContext('2d');
+  const frame  = document.getElementById('frame');
+  const characterSelect = document.getElementById('characterSelect');
+
+  function resize() {
+    // We use a fixed internal resolution for consistency
+    canvas.width  = 1280;
+    canvas.height = 720;
+  }
+  resize();
+
+  // ── Load Assets ────────────────────────────────────────────────────────────
+  const bg = new Image();
+  bg.src = 'assets/bg.png';
+
+  const CHARACTERS = [
+    {
+      id: 'trex',
+      name: 'T-Rex',
+      animations: {
+        right: { frames: 16, fps: WALK_FPS, step: FRAME_STEP, file: 'right.png' },
+        left:  { frames: 10, fps: WALK_FPS, step: FRAME_STEP, file: 'left.png' },
+        turn:  { frames: 10, fps: TURN_FPS, step: FRAME_STEP, file: 'turn.png' },
+        jump:  { frames: 20, fps: JUMP_FPS, step: JUMP_STEP, file: 'jump.png' },
+      }
+    }
+  ];
+
+  const anims = {
+    right: { frames: 1, fps: WALK_FPS, step: FRAME_STEP, img: new Image() },
+    left:  { frames: 1, fps: WALK_FPS, step: FRAME_STEP, img: new Image() },
+    turn:  { frames: 1, fps: TURN_FPS, step: FRAME_STEP, img: new Image() },
+    jump:  { frames: 1, fps: JUMP_FPS, step: JUMP_STEP, img: new Image() },
+  };
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  const characterState = {
+    x:           100,
+    phase:       'walk',        
+    dir:         'right',       
+    anim:        'right',       
+    frame:       0,
+    frameTimer:  0,
+    pendingDir:  null,          
+    randomTimer: nextRandomTurn(),
+    jumpActionTimer: nextRandomJumpAction(),
+    jumpOffsetY: 0,
+    jumpTimer:   0,
+    jumpDurMs:   0,
+  };
+  let currentCharacter = CHARACTERS[0];
+
+  function nextRandomTurn() {
+    return 3000 + Math.random() * 5000; 
+  }
+
+  function nextRandomJumpAction() {
+    return 1200 + Math.random() * 1000;
+  }
+
+  function getGroundY() {
+    // Floor is at 1/5 from the bottom
+    return canvas.height * (4/5);
+  }
+
+  function getCharacterY() {
+    // The feet should be on the ground. 
+    // We adjust by a small offset if the sprite has padding.
+    return getGroundY() - DISPLAY_SIZE + 20; 
+  }
+
+  function applyCharacter(characterDef) {
+    currentCharacter = characterDef;
+    for (const [name, cfg] of Object.entries(characterDef.animations)) {
+      if (!anims[name]) continue;
+      anims[name].frames = cfg.frames;
+      anims[name].fps = cfg.fps;
+      anims[name].step = cfg.step;
+      anims[name].img.src = `characters/${characterDef.id}/sprites/${cfg.file}`;
+    }
+    startWalk('right');
+    characterState.x = 100;
+    document.title = `${characterDef.name} Platformer`;
+  }
+
+  function initCharacterSelector() {
+    for (const charDef of CHARACTERS) {
+      const opt = document.createElement('option');
+      opt.value = charDef.id;
+      opt.textContent = charDef.name;
+      characterSelect.appendChild(opt);
+    }
+    characterSelect.value = CHARACTERS[0].id;
+    characterSelect.addEventListener('change', (e) => {
+      const next = CHARACTERS.find((c) => c.id === e.target.value);
+      if (next) applyCharacter(next);
+    });
+  }
+
+  function startTurn(toDir) {
+    if (characterState.phase === 'turn') return;
+    characterState.phase      = 'turn';
+    characterState.anim       = 'turn';
+    characterState.frame      = 0;
+    characterState.frameTimer = 0;
+    characterState.pendingDir = toDir;
+  }
+
+  function startWalk(dir) {
+    characterState.phase       = 'walk';
+    characterState.dir         = dir;
+    characterState.anim        = dir;
+    characterState.frame       = 0;
+    characterState.frameTimer  = 0;
+    characterState.pendingDir  = null;
+    characterState.randomTimer = nextRandomTurn();
+    characterState.jumpActionTimer = nextRandomJumpAction();
+    characterState.jumpOffsetY = 0;
+    characterState.jumpTimer   = 0;
+    characterState.jumpDurMs   = 0;
+  }
+
+  function startJump() {
+    if (characterState.phase !== 'walk') return;
+    characterState.phase      = 'jump';
+    characterState.anim       = 'jump';
+    characterState.frame      = 0;
+    characterState.frameTimer = 0;
+    characterState.jumpTimer  = 0;
+    characterState.jumpDurMs  = (anims.jump.frames / anims.jump.fps) * 1000;
+  }
+
+  // ── Update ─────────────────────────────────────────────────────────────────
+  function update(dt) {
+    const anim         = anims[characterState.anim];
+    const frameDur     = 1000 / anim.fps;
+
+    // Advance animation frame
+    characterState.frameTimer += dt;
+    if (characterState.frameTimer >= frameDur) {
+      characterState.frameTimer -= frameDur;
+      characterState.frame++;
+      if (characterState.frame >= anim.frames) {
+        if (characterState.phase === 'turn') {
+          startWalk(characterState.pendingDir);
+        } else if (characterState.phase === 'jump') {
+          startWalk(characterState.dir);
+        } else {
+          characterState.frame = 0; // loop
+        }
+      }
+    }
+
+    // Move + edge / random turn logic
+    if (characterState.phase === 'walk') {
+      const dx = (characterState.dir === 'right' ? 1 : -1) * WALK_SPEED * (dt / 1000);
+      characterState.x += dx;
+
+      const margin = 40;
+      if (characterState.dir === 'right' && characterState.x + DISPLAY_SIZE >= canvas.width - margin) {
+        characterState.x = canvas.width - margin - DISPLAY_SIZE;
+        startTurn('left');
+      } else if (characterState.dir === 'left' && characterState.x <= margin) {
+        characterState.x = margin;
+        startTurn('right');
+      } else {
+        characterState.randomTimer -= dt;
+        characterState.jumpActionTimer -= dt;
+        if (characterState.jumpActionTimer <= 0) {
+          if (Math.random() < JUMP_CHANCE) {
+            startJump();
+          } else {
+            startTurn(characterState.dir === 'right' ? 'left' : 'right');
+          }
+          characterState.jumpActionTimer = nextRandomJumpAction();
+          characterState.randomTimer = nextRandomTurn();
+        } else if (characterState.randomTimer <= 0) {
+          startTurn(characterState.dir === 'right' ? 'left' : 'right');
+          characterState.randomTimer = nextRandomTurn();
+        }
+      }
+    } else if (characterState.phase === 'jump') {
+      const dx = (characterState.dir === 'right' ? 1 : -1) * (WALK_SPEED * 0.8) * (dt / 1000);
+      characterState.x += dx;
+
+      const margin = 40;
+      characterState.x = Math.max(margin, Math.min(canvas.width - margin - DISPLAY_SIZE, characterState.x));
+
+      characterState.jumpTimer += dt;
+      const t = Math.min(characterState.jumpTimer / characterState.jumpDurMs, 1);
+      // Simple parabola for additional lift.
+      characterState.jumpOffsetY = Math.sin(t * Math.PI) * 70;
+
+      if ((characterState.dir === 'right' && characterState.x + DISPLAY_SIZE >= canvas.width - margin) ||
+          (characterState.dir === 'left' && characterState.x <= margin)) {
+        // If jump ends near edge, force a turn on landing.
+        characterState.pendingDir = characterState.dir === 'right' ? 'left' : 'right';
+      }
+      if (t >= 1) {
+        const landDir = characterState.pendingDir || characterState.dir;
+        if (landDir !== characterState.dir) {
+          startTurn(landDir);
+        } else {
+          startWalk(characterState.dir);
+        }
+      }
+    }
+  }
+
+  // ── Draw ───────────────────────────────────────────────────────────────────
+  function drawBG() {
+    if (bg.complete) {
+      // Draw background covering the canvas
+      ctx.drawImage(bg, 0, 0, canvas.width, canvas.height);
+    } else {
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  }
+
+  function drawShadow(x, y) {
+    const cx  = x + DISPLAY_SIZE / 2;
+    const cy  = y + DISPLAY_SIZE - 15;
+    const rx  = DISPLAY_SIZE * 0.25;
+    const ry  = 8;
+    
+    const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, rx);
+    grd.addColorStop(0,   'rgba(0,0,0,0.4)');
+    grd.addColorStop(1,   'rgba(0,0,0,0)');
+    
+    ctx.save();
+    ctx.scale(1, ry / rx);
+    ctx.beginPath();
+    ctx.arc(cx, cy * (rx / ry), rx, 0, Math.PI * 2);
+    ctx.fillStyle = grd;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawCharacter() {
+    const anim = anims[characterState.anim];
+    if (!anim.img.complete || !anim.img.naturalWidth) return;
+
+    const sx = characterState.frame * (anim.step || FRAME_STEP);
+    const ty = getCharacterY() - characterState.jumpOffsetY;
+
+    drawShadow(characterState.x, ty);
+    const shouldFlipJump = characterState.anim === 'jump' && characterState.dir === 'left';
+    if (shouldFlipJump) {
+      ctx.save();
+      ctx.translate(characterState.x + DISPLAY_SIZE, ty);
+      ctx.scale(-1, 1);
+      ctx.drawImage(anim.img, sx, 0, FRAME_SIZE, FRAME_SIZE, 0, 0, DISPLAY_SIZE, DISPLAY_SIZE);
+      ctx.restore();
+    } else {
+      ctx.drawImage(anim.img, sx, 0, FRAME_SIZE, FRAME_SIZE, characterState.x, ty, DISPLAY_SIZE, DISPLAY_SIZE);
+    }
+  }
+
+  // ── Loop ───────────────────────────────────────────────────────────────────
+  let lastTs = null;
+
+  function loop(ts) {
+    if (!lastTs) lastTs = ts;
+    const dt = Math.min(ts - lastTs, 100);
+    lastTs = ts;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    drawBG();
+    update(dt);
+    drawCharacter();
+
+    requestAnimationFrame(loop);
+  }
+
+  initCharacterSelector();
+  applyCharacter(CHARACTERS[0]);
+  requestAnimationFrame(loop);
+</script>
+</body>
+</html>

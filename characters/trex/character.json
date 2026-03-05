@@ -1,0 +1,53 @@
+{
+  "character": "trex",
+  "animations": {
+    "left": {
+      "type": "locomotion",
+      "frames": 10,
+      "fps": 2,
+      "loop": true,
+      "frames_dir": "frames_left",
+      "spritesheet": "sprites/left.png",
+      "frame_size": {
+        "width": 128,
+        "height": 128
+      }
+    },
+    "right": {
+      "type": "locomotion",
+      "frames": 16,
+      "fps": 2,
+      "loop": true,
+      "frames_dir": "frames_right",
+      "spritesheet": "sprites/right.png",
+      "frame_size": {
+        "width": 128,
+        "height": 128
+      }
+    },
+    "turn": {
+      "type": "transition",
+      "frames": 10,
+      "fps": 2,
+      "loop": false,
+      "frames_dir": "frames_turn",
+      "spritesheet": "sprites/turn.png",
+      "frame_size": {
+        "width": 128,
+        "height": 128
+      }
+    },
+    "jump": {
+      "type": "action",
+      "frames": 20,
+      "fps": 4,
+      "loop": false,
+      "frames_dir": "frames_jump",
+      "spritesheet": "sprites/jump.png",
+      "frame_size": {
+        "width": 128,
+        "height": 128
+      }
+    }
+  }
+}
