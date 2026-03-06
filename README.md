@@ -3,9 +3,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/hgosansn/slopformer/actions/workflows/pages.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/hgosansn/slopformer/pages.yml?branch=main&label=pages%20deploy" alt="Pages Deploy">
-  </a>
   <a href="https://hgosansn.github.io/slopformer/">
     <img src="https://img.shields.io/badge/demo-live-2ea44f" alt="Live Demo">
   </a>
